@@ -1,7 +1,7 @@
 #!usr/bin/python
 """
     main.py, by Madhu Chegondi, 10-06-2017
-    This program takes a data file and generate rules for the data separate
+    This program takes a data file and generate rules for the DATASET
 """
 import utility
 import os
@@ -21,14 +21,14 @@ def main():
     print "+----------------------------------------------------------------+"
     print ""
     inputFile = raw_input("Please Enter Name Of Input DataFile >> ")
-    # outputFileName = raw_input("Please enter desired output data filename with rules >> ")
+
     print "\n"
     outputFile = raw_input("Please Enter the Name Of Output DataFile >> ")
     print '\n'
     outputFile1 = outputFile + '.certain.r'
     outputFile2 = outputFile + '.possible.r'
-    if not os.path.exists('output'):
-        os.makedirs('output')
+    if not os.path.exists('output'):    # Create an output folder for storing
+        os.makedirs('output')           # output files with rules
 
     """ Reading File using f open in python"""
     fp = open(inputFile, 'r')
@@ -38,7 +38,7 @@ def main():
     fpout1.close()
     fpout2.close()
 
-    # Wrote in an assumption that first 2 lines of the input data filename have
+    # This Program assumes that first 2 lines of the input data filename have
     # < a a a d >
     # [ attribute1 attribute2 attribute3 decision ]
     header1 = fp.readline()
@@ -61,10 +61,10 @@ def main():
             except ValueError:
                 sourceAttr[AttNames[i]] = columns[i]
 
-        # attr list of dictionaries
+        # attr is a list of dictionaries
         attr.append(sourceAttr)
         sourceDes[desNames] = columns[-1]
-        # decisions is list of list of tuples
+        # decisions is a list of list of tuples
         decisions.append(sourceDes.items())
     fp.close()
 
@@ -79,7 +79,6 @@ def main():
 
     # Converiting list of dictionaries to "list of List of tuples"
     attributes = utility.dictToTuple(updatedAttr)
-    # print decisions
 
     initial_time = time.time()
     desPart =  utility.computePartitions(decisions)
@@ -87,7 +86,7 @@ def main():
     final_time = time.time()
     print "time for Compute Partitions", final_time - initial_time
 
-
+    # Finds number of classes and class Names
     x = utility.tupleToDict(decisions)
     numClasses = len(pd.DataFrame(x).drop_duplicates())
     classes = [i for i in pd.DataFrame(x).drop_duplicates()[desNames]]
@@ -102,6 +101,7 @@ def main():
 
     for i in range(numClasses):
         if(utility.isConsistent(attrPart[0], desPart[0])):
+            """If the data set is consistent there will be no possible rules"""
             fpout2 = open('output/'+outputFile2, 'a')
             fpout2.write("! Possible rule set is not shown since it is identical with the certain rule set")
             fpout2.close()
@@ -114,7 +114,6 @@ def main():
             utility.writeToFile(ruleset, desNames, classes[i], fpout2)
     final_time = time.time()
     print "time for generating Rules", final_time - initial_time
-
 
 
 if __name__ == "__main__":

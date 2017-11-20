@@ -3,14 +3,14 @@ import pandas as pd
 
 def computePartitions(S):
     """
-    Takes a matrix as input and computes partitions of given matrix
-    Convert the given matrix to a list abd convert the list to tuples
-    Create a dictionary with keys as unique tuples from the given matrix
-    Assign a separate list to each key so each array is different
+    Takes a list of list of list of tuples and gives you two vectors that
+    stores both partition sets and concept name of that partition set
     """
+    # gets unique list of cases which are used as keys for dictionaries
     a = list(set([tuple(i) for i in S]))
     partitionset = dict.fromkeys(a, [])
     for i in range(len(a)):
+        # Creating a dictionary with all unique cases
         partitionset[a[i]] = []
     for i in range(len(a)):
         for j in range(len(S)):
@@ -26,12 +26,15 @@ def computePartitions(S):
 
 def isConsistent(attrPartitions, decPartitions):
     """
-    This function takes list of sets and checks for atleast one set that is not
-    a subset of other.
+    inputs          : output of compute Partitions
+    Returns true    : when A* is subset of d*
+    Returns false   : when A* is not subset of d*
     """
     for t in attrPartitions:
         logicalValue = False
         for s in decPartitions:
+            # returns false if all the A* elements are not subset of d*
+            # because d* is a list of sets for unique concepts
             logicalValue = logicalValue or t.issubset(s)
         if(logicalValue == False):
             return False
@@ -40,8 +43,9 @@ def isConsistent(attrPartitions, decPartitions):
 
 def LEM1(S, R):
     """
-    Alternate to LEM1 which takes attribute value pairs and calculate rules set
-    from them
+    input       : list of list of tuples of attributes and decisions
+    output      : list of list of tuples after applying LEM1 with
+                  few attribute values
     """
     R_partitions = computePartitions(R)
     S_partitions = computePartitions(S)
@@ -50,20 +54,28 @@ def LEM1(S, R):
         tempS = tupleToDict(S)
 
         df = pd.DataFrame(tempS)
+        # collect all the column names to keep track of removed attribute name
+        XColNames = list(df.columns.values)
         for i in range(len(df.columns)-1):
-            df = df.iloc[:,1:]
-            Q = df.T.to_dict().values()
+            # Reomve first column Name and pass to the dataFrame
+            bkpCol = XColNames.pop(0)
+            Q = df.ix[:, XColNames].T.to_dict().values()
             Q1 = dictToTuple(Q)
             Q_partitions = computePartitions(Q1)
             if (isConsistent(Q_partitions[0], R_partitions[0])):
                 P = Q1[:]
+            else:
+                # after removing column if the dataset if not consistent append the
+                # column to the end of Column Names. Cause everytime we are removing
+                # the first element from the Column Names
+                XColNames.append(bkpCol)
         return P
     return """ Something went wrong with LOWER and UPPER approximations !!! """
 
 
 def cutpointStrategy(listOfDict):
     """
-    Convert numerical column to symbol columns using all cutpoint Strategy
+    Applying discritization using all cutpoint strategy
     """
     df = pd.DataFrame(listOfDict)
     resultDF = df.copy(deep=True)
@@ -83,6 +95,7 @@ def cutpointStrategy(listOfDict):
 
 
 def tupleToDict(tup):
+    """convets a tuple to dictionary"""
     dic = []
     for i in range(len(tup)):
         dic.append(dict(tup[i]))
@@ -90,18 +103,12 @@ def tupleToDict(tup):
 
 
 def dictToTuple(dic):
+    """Converts a ditionary to tuple"""
     tup = []
     for i in range(len(dic)):
         tup.append(dic[i].items())
     return tup
 
-
-# def droppingConditions(rules, DF):
-"""
-Compute partitions for (feel, hard) and (size, big) and the intersection will give you
-the cases where we have (feel, hard) and (size, big) and then check for that is equal to
-(z, negative or not)
-"""
 
 def generateRules(singleCovering, decisions):
     """
@@ -131,17 +138,23 @@ def generateRules(singleCovering, decisions):
         count = 0
 
         for j in range(len(ruleTuple[i])):
+            # collect the cases that are satisfying a rule from the ruleTuple
             listofsets.append(set(combinedDF[combinedDF[ruleTuple[i][j][0]] == ruleTuple[i][j][1]].index.values))
 
         for m in range(len(listofsets)):
             if (len(listofsets) > 1):
+                # drop the first condition from the rule
                 appendlast = listofsets.pop(0)
 
+            # compute the case Numbers thar are satifying the ruleTUple
             u = set.intersection(*listofsets)
 
             if (not u.issubset(ruleset)):
+                # Check whether the remaining attributes satisfy the cases
+                # if not append the condition to the attribute list
                 listofsets.append(appendlast)
             elif(len(ruleTuple[i]) > 1):
+                # if yes remove the dropped attribute from the list
                 ruleTuple[i].pop(m-count)
                 count = count + 1
 
@@ -149,7 +162,7 @@ def generateRules(singleCovering, decisions):
 
 
 def lowerApprox(concept, attrPartitions, decPartitions):
-    """ generates a vector with that decision"""
+    """ generates a decision vector satisfying lower approximations"""
     conceptList = []
     dictKey = 'class' #'LowerApprox['+concept+']'
     lowAConcet = {}
@@ -162,6 +175,7 @@ def lowerApprox(concept, attrPartitions, decPartitions):
                 if(a.issubset(decPartitions[0][i])):
                     lowA = lowA.union(a)
     numCases = max([max(a) for a in attrPartitions])
+    # Add place holder for the cases that doesnt belong to the concept
     desRow = [concept if (i in lowA) else 'madhu' for i in range(numCases+1)]
     for m in range(len(desRow)):
         lowAConcet[dictKey] = desRow[m]
@@ -170,7 +184,7 @@ def lowerApprox(concept, attrPartitions, decPartitions):
 
 
 def upperApprox(concept, attrPartitions, decPartitions):
-    """ generates a vector with that decision"""
+    """ generates a vector with that decision satisfying upper Approximations"""
     conceptList = []
     dictKey = 'class'     #'UpperApprox['+concept+']'
     upAConcet = {}
@@ -183,6 +197,7 @@ def upperApprox(concept, attrPartitions, decPartitions):
                 if(a.intersection(decPartitions[0][i])):
                     upA = upA.union(a)
     numCases = max([max(a) for a in attrPartitions])
+    # Add place holder for the cases that doesnt belong to the concept
     desRow = [concept if (i in upA) else 'madhu' for i in range(numCases+1)]
     for m in range(len(desRow)):
         upAConcet[dictKey] = desRow[m]
@@ -191,6 +206,7 @@ def upperApprox(concept, attrPartitions, decPartitions):
 
 
 def writeToFile(ruleset, className, classValue, fp):
+    """ Writes the Rules to a file in the desired format"""
     size = len(ruleset)
     if (size != 0):
         for i in range(size):
